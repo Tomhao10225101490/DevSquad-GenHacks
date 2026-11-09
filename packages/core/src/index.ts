@@ -1,4 +1,6 @@
 export type Role = 'planner' | 'coder' | 'tester' | 'reviewer' | 'system';
+export type {ExecutablePhase,RunStatus,SampleId,WorkerRun,WorkerEvent,WorkerSnapshot} from './worker.ts';
+export {phaseRole,workerDisclosure} from './worker.ts';
 export type Phase = 'READY' | 'PLAN' | 'IMPLEMENT' | 'TEST' | 'REVIEW' | 'REPAIR' | 'DONE' | 'ESCALATE';
 export type EventType = 'phase' | 'note' | 'tool' | 'file' | 'tests' | 'review' | 'finish';
 export interface RunEvent {

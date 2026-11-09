@@ -7,9 +7,10 @@
     "dev": "pnpm --filter @devsquad/web dev",
     "build": "pnpm --filter @devsquad/web build && node --experimental-strip-types scripts/export-site.ts",
     "test": "vitest run",
-    "typecheck": "pnpm --filter @devsquad/web typecheck && tsc -p packages/core/tsconfig.json --noEmit",
+    "typecheck": "pnpm --filter @devsquad/web typecheck && pnpm --filter @devsquad/worker typecheck && tsc -p packages/core/tsconfig.json --noEmit",
     "capture": "node --experimental-strip-types scripts/capture.ts",
-    "verify:patches": "node --experimental-strip-types scripts/verify-patches.ts"
+    "verify:patches": "node --experimental-strip-types scripts/verify-patches.ts",
+    "worker": "pnpm --filter @devsquad/worker dev"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "id": "engineering-ttl-cache-2026-11-09",
+  "sampleId": "ttl-cache",
+  "title": "Expire entries at the exact boundary",
+  "issue": "A cache continues returning stale values past their TTL. Expire and remove stale entries, preserve falsy values before expiry, and refresh the deadline when a key is overwritten.",
+  "capturedAt": "2026-11-09T03:08:47.937Z",
+  "provenance": "engineering-verification",
+  "disclosure": "Recorded engineering verification of a Codex-authored fix. Real filesystem, git diff and test processes. Role labels organize the trace; no autonomous role-model calls were made in this M1 capture.",
+  "runtime": "v22.23.3",
+  "testCommand": "node --experimental-strip-types --test index.test.ts",
+  "baselineFiles": {
+    "src/index.ts": "export class TTLCache<T> {\n  private values = new Map<string, { value: T; expiresAt: number }>();\n  private now: () => number;\n  constructor(now: () => number = Date.now) { this.now = now; }\n  set(key: string, value: T, ttl: number): void {\n    this.values.set(key, { value, expiresAt: this.now() + ttl });\n  }\n  get(key: string): T | undefined {\n    return this.values.get(key)?.value;\n  }\n}\n",
+    "index.test.ts": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { TTLCache } from './src/index.ts';\n\ntest('returns a value before expiry', () => { let now = 10; const c = new TTLCache(() => now); c.set('key', 'fresh', 5); now = 14; assert.equal(c.get('key'), 'fresh'); });\ntest('expires at the exact deadline', () => { let now = 10; const c = new TTLCache(() => now); c.set('key', 'stale', 5); now = 15; assert.equal(c.get('key'), undefined); });\ntest('zero TTL is immediately expired', () => { const c = new TTLCache(() => 1); c.set('key', 'stale', 0); assert.equal(c.get('key'), undefined); });\ntest('preserves falsy values', () => { const c = new TTLCache(() => 1); c.set('zero', 0, 10); assert.equal(c.get('zero'), 0); });\ntest('overwriting refreshes the deadline', () => { let now = 1; const c = new TTLCache(() => now); c.set('key', 'old', 2); now = 2; c.set('key', 'new', 10); now = 5; assert.equal(c.get('key'), 'new'); });\ntest('rejects negative TTL', () => { const c = new TTLCache(); assert.throws(() => c.set('key', 1, -1), RangeError); });\n"
+  },
+  "finalFiles": {
+    "src/index.ts": "export class TTLCache<T> {\n  private values = new Map<string, { value: T; expiresAt: number }>();\n  private now: () => number;\n  constructor(now: () => number = Date.now) { this.now = now; }\n  set(key: string, value: T, ttl: number): void {\n    if (!Number.isFinite(ttl) || ttl < 0) throw new RangeError('ttl must be finite and non-negative');\n    this.values.set(key, { value, expiresAt: this.now() + ttl });\n  }\n  get(key: string): T | undefined {\n    const entry = this.values.get(key);\n    if (!entry) return undefined;\n    if (entry.expiresAt <= this.now()) {\n      this.values.delete(key);\n      return undefined;\n    }\n    return entry.value;\n  }\n}\n",
+    "index.test.ts": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { TTLCache } from './src/index.ts';\n\ntest('returns a value before expiry', () => { let now = 10; const c = new TTLCache(() => now); c.set('key', 'fresh', 5); now = 14; assert.equal(c.get('key'), 'fresh'); });\ntest('expires at the exact deadline', () => { let now = 10; const c = new TTLCache(() => now); c.set('key', 'stale', 5); now = 15; assert.equal(c.get('key'), undefined); });\ntest('zero TTL is immediately expired', () => { const c = new TTLCache(() => 1); c.set('key', 'stale', 0); assert.equal(c.get('key'), undefined); });\ntest('preserves falsy values', () => { const c = new TTLCache(() => 1); c.set('zero', 0, 10); assert.equal(c.get('zero'), 0); });\ntest('overwriting refreshes the deadline', () => { let now = 1; const c = new TTLCache(() => now); c.set('key', 'old', 2); now = 2; c.set('key', 'new', 10); now = 5; assert.equal(c.get('key'), 'new'); });\ntest('rejects negative TTL', () => { const c = new TTLCache(); assert.throws(() => c.set('key', 1, -1), RangeError); });\n"
+  },
+  "patch": "diff --git a/src/index.ts b/src/index.ts\nindex 9766f43..4c734df 100644\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -3,9 +3,16 @@ export class TTLCache<T> {\n   private now: () => number;\n   constructor(now: () => number = Date.now) { this.now = now; }\n   set(key: string, value: T, ttl: number): void {\n+    if (!Number.isFinite(ttl) || ttl < 0) throw new RangeError('ttl must be finite and non-negative');\n     this.values.set(key, { value, expiresAt: this.now() + ttl });\n   }\n   get(key: string): T | undefined {\n-    return this.values.get(key)?.value;\n+    const entry = this.values.get(key);\n+    if (!entry) return undefined;\n+    if (entry.expiresAt <= this.now()) {\n+      this.values.delete(key);\n+      return undefined;\n+    }\n+    return entry.value;\n   }\n }\n",
+  "patchSha256": "02bfb7709363dc7f4a77ed74e59dbeef1a12b8d79f20725cc5e9d5c600076f8b",
+  "events": [
+    {
+      "seq": 1,
+      "timestamp": "2026-11-09T03:08:47.629Z",
+      "elapsedMs": 31,
+      "role": "planner",
+      "type": "phase",
+      "title": "Ada scopes the issue",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "PLAN"
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-11-09T03:08:47.629Z",
+      "elapsedMs": 31,
+      "role": "planner",
+      "type": "note",
+      "title": "Keep the change small",
+      "detail": "A cache continues returning stale values past their TTL. Expire and remove stale entries, preserve falsy values before expiry, and refresh the deadline when a key is overwritten.\n\nRecord the failing baseline, edit only src/index.ts, rerun the same tests and verify the patch."
+    },
+    {
+      "seq": 3,
+      "timestamp": "2026-11-09T03:08:47.629Z",
+      "elapsedMs": 31,
+      "role": "coder",
+      "type": "tool",
+      "title": "Read src/index.ts",
+      "detail": "export class TTLCache<T> {\n  private values = new Map<string, { value: T; expiresAt: number }>();\n  private now: () => number;\n  constructor(now: () => number = Date.now) { this.now = now; }\n  set(key: string, value: T, ttl: number): void {\n    this.values.set(key, { value, expiresAt: this.now() + ttl });\n  }\n  get(key: string): T | undefined {\n    return this.values.get(key)?.value;\n  }\n}\n",
+      "tool": "read_file",
+      "path": "src/index.ts"
+    },
+    {
+      "seq": 4,
+      "timestamp": "2026-11-09T03:08:47.629Z",
+      "elapsedMs": 31,
+      "role": "tester",
+      "type": "tool",
+      "title": "Run the baseline test command",
+      "detail": "node --experimental-strip-types --test index.test.ts",
+      "tool": "run_tests"
+    },
+    {
+      "seq": 5,
+      "timestamp": "2026-11-09T03:08:47.711Z",
+      "elapsedMs": 113,
+      "role": "tester",
+      "type": "tests",
+      "title": "Baseline confirms the defect",
+      "detail": "TAP version 13\n# Subtest: returns a value before expiry\nok 1 - returns a value before expiry\n  ---\n  duration_ms: 0.344583\n  type: 'test'\n  ...\n# Subtest: expires at the exact deadline\nnot ok 2 - expires at the exact deadline\n  ---\n  duration_ms: 0.348834\n  type: 'test'\n  location: '/private/workspace/index.test.ts:6:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    + actual - expected\n    \n    + 'stale'\n    - undefined\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  actual: 'stale'\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///private/workspace/index.test.ts:6:139)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n# Subtest: zero TTL is immediately expired\nnot ok 3 - zero TTL is immediately expired\n  ---\n  duration_ms: 0.12775\n  type: 'test'\n  location: '/private/workspace/index.test.ts:7:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    + actual - expected\n    \n    + 'stale'\n    - undefined\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  actual: 'stale'\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///private/workspace/index.test.ts:7:115)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n# Subtest: preserves falsy values\nok 4 - preserves falsy values\n  ---\n  duration_ms: 0.051291\n  type: 'test'\n  ...\n# Subtest: overwriting refreshes the deadline\nok 5 - overwriting refreshes the deadline\n  ---\n  duration_ms: 0.046542\n  type: 'test'\n  ...\n# Subtest: rejects negative TTL\nnot ok 6 - rejects negative TTL\n  ---\n  duration_ms: 0.103292\n  type: 'test'\n  location: '/private/workspace/index.test.ts:10:1'\n  failureType: 'testCodeFailure'\n  error: 'Missing expected exception (RangeError).'\n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  stack: |-\n    TestContext.<anonymous> (file:///private/workspace/index.test.ts:10:71)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 3\n# fail 3\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 59.975834\n",
+      "stage": "baseline",
+      "passed": 3,
+      "failed": 3,
+      "exitCode": 1,
+      "durationMs": 82
+    },
+    {
+      "seq": 6,
+      "timestamp": "2026-11-09T03:08:47.711Z",
+      "elapsedMs": 113,
+      "role": "coder",
+      "type": "phase",
+      "title": "Theo applies the scoped fix",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "seq": 7,
+      "timestamp": "2026-11-09T03:08:47.711Z",
+      "elapsedMs": 113,
+      "role": "coder",
+      "type": "file",
+      "title": "Edit src/index.ts",
+      "detail": "Applied the Codex-authored candidate fix to the temporary workspace.",
+      "tool": "edit_file",
+      "path": "src/index.ts",
+      "content": "export class TTLCache<T> {\n  private values = new Map<string, { value: T; expiresAt: number }>();\n  private now: () => number;\n  constructor(now: () => number = Date.now) { this.now = now; }\n  set(key: string, value: T, ttl: number): void {\n    if (!Number.isFinite(ttl) || ttl < 0) throw new RangeError('ttl must be finite and non-negative');\n    this.values.set(key, { value, expiresAt: this.now() + ttl });\n  }\n  get(key: string): T | undefined {\n    const entry = this.values.get(key);\n    if (!entry) return undefined;\n    if (entry.expiresAt <= this.now()) {\n      this.values.delete(key);\n      return undefined;\n    }\n    return entry.value;\n  }\n}\n"
+    },
+    {
+      "seq": 8,
+      "timestamp": "2026-11-09T03:08:47.725Z",
+      "elapsedMs": 127,
+      "role": "coder",
+      "type": "tool",
+      "title": "Inspect the unified diff",
+      "detail": "diff --git a/src/index.ts b/src/index.ts\nindex 9766f43..4c734df 100644\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -3,9 +3,16 @@ export class TTLCache<T> {\n   private now: () => number;\n   constructor(now: () => number = Date.now) { this.now = now; }\n   set(key: string, value: T, ttl: number): void {\n+    if (!Number.isFinite(ttl) || ttl < 0) throw new RangeError('ttl must be finite and non-negative');\n     this.values.set(key, { value, expiresAt: this.now() + ttl });\n   }\n   get(key: string): T | undefined {\n-    return this.values.get(key)?.value;\n+    const entry = this.values.get(key);\n+    if (!entry) return undefined;\n+    if (entry.expiresAt <= this.now()) {\n+      this.values.delete(key);\n+      return undefined;\n+    }\n+    return entry.value;\n   }\n }\n",
+      "tool": "run_command",
+      "exitCode": 0,
+      "durationMs": 14
+    },
+    {
+      "seq": 9,
+      "timestamp": "2026-11-09T03:08:47.725Z",
+      "elapsedMs": 127,
+      "role": "tester",
+      "type": "phase",
+      "title": "Jules runs the same test suite",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "TEST"
+    },
+    {
+      "seq": 10,
+      "timestamp": "2026-11-09T03:08:47.804Z",
+      "elapsedMs": 206,
+      "role": "tester",
+      "type": "tests",
+      "title": "The fixed test suite passes",
+      "detail": "TAP version 13\n# Subtest: returns a value before expiry\nok 1 - returns a value before expiry\n  ---\n  duration_ms: 0.3245\n  type: 'test'\n  ...\n# Subtest: expires at the exact deadline\nok 2 - expires at the exact deadline\n  ---\n  duration_ms: 0.047625\n  type: 'test'\n  ...\n# Subtest: zero TTL is immediately expired\nok 3 - zero TTL is immediately expired\n  ---\n  duration_ms: 0.038583\n  type: 'test'\n  ...\n# Subtest: preserves falsy values\nok 4 - preserves falsy values\n  ---\n  duration_ms: 0.037792\n  type: 'test'\n  ...\n# Subtest: overwriting refreshes the deadline\nok 5 - overwriting refreshes the deadline\n  ---\n  duration_ms: 0.045125\n  type: 'test'\n  ...\n# Subtest: rejects negative TTL\nok 6 - rejects negative TTL\n  ---\n  duration_ms: 0.120875\n  type: 'test'\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 56.861083\n",
+      "stage": "after",
+      "passed": 6,
+      "failed": 0,
+      "exitCode": 0,
+      "durationMs": 79
+    },
+    {
+      "seq": 11,
+      "timestamp": "2026-11-09T03:08:47.804Z",
+      "elapsedMs": 206,
+      "role": "reviewer",
+      "type": "phase",
+      "title": "Maya inspects the captured evidence",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "REVIEW"
+    },
+    {
+      "seq": 12,
+      "timestamp": "2026-11-09T03:08:47.817Z",
+      "elapsedMs": 219,
+      "role": "reviewer",
+      "type": "review",
+      "title": "Structural review passed",
+      "detail": "Deterministic M1 review: only src/index.ts changed; the original tests are byte-for-byte unchanged; the real baseline failed and the same test command now passes. This is not an LLM review."
+    },
+    {
+      "seq": 13,
+      "timestamp": "2026-11-09T03:08:47.937Z",
+      "elapsedMs": 339,
+      "role": "tester",
+      "type": "tool",
+      "title": "Verify the downloadable patch",
+      "detail": "git apply --check candidate.patch\ngit apply candidate.patch\nnode --experimental-strip-types --test index.test.ts\n\nTAP version 13\n# Subtest: returns a value before expiry\nok 1 - returns a value before expiry\n  ---\n  duration_ms: 0.327917\n  type: 'test'\n  ...\n# Subtest: expires at the exact deadline\nok 2 - expires at the exact deadline\n  ---\n  duration_ms: 0.045417\n  type: 'test'\n  ...\n# Subtest: zero TTL is immediately expired\nok 3 - zero TTL is immediately expired\n  ---\n  duration_ms: 0.037291\n  type: 'test'\n  ...\n# Subtest: preserves falsy values\nok 4 - preserves falsy values\n  ---\n  duration_ms: 0.036333\n  type: 'test'\n  ...\n# Subtest: overwriting refreshes the deadline\nok 5 - overwriting refreshes the deadline\n  ---\n  duration_ms: 0.054291\n  type: 'test'\n  ...\n# Subtest: rejects negative TTL\nok 6 - rejects negative TTL\n  ---\n  duration_ms: 0.121334\n  type: 'test'\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 60.605416\n",
+      "tool": "run_command",
+      "exitCode": 0,
+      "durationMs": 87
+    },
+    {
+      "seq": 14,
+      "timestamp": "2026-11-09T03:08:47.937Z",
+      "elapsedMs": 339,
+      "role": "system",
+      "type": "phase",
+      "title": "Patch verified. Evidence ready.",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "DONE"
+    }
+  ],
+  "tokens": null,
+  "cost": null
+}

@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "id": "engineering-path-guard-2026-11-09",
+  "sampleId": "path-guard",
+  "title": "Close the sibling-directory escape",
+  "issue": "A path-prefix check lets /workspace/repo-evil masquerade as a child of /workspace/repo. Accept the root and genuine descendants; reject sibling names and traversal.",
+  "capturedAt": "2026-11-09T03:08:47.246Z",
+  "provenance": "engineering-verification",
+  "disclosure": "Recorded engineering verification of a Codex-authored fix. Real filesystem, git diff and test processes. Role labels organize the trace; no autonomous role-model calls were made in this M1 capture.",
+  "runtime": "v22.23.3",
+  "testCommand": "node --experimental-strip-types --test index.test.ts",
+  "baselineFiles": {
+    "src/index.ts": "import { resolve } from 'node:path';\n\nexport function isWithin(root: string, target: string): boolean {\n  return resolve(target).startsWith(resolve(root));\n}\n",
+    "index.test.ts": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { isWithin } from './src/index.ts';\n\ntest('accepts a genuine descendant', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/src/index.ts'), true));\ntest('accepts the root itself', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo'), true));\ntest('rejects a sibling sharing the prefix', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo-evil/secrets'), false));\ntest('rejects normalized sibling traversal', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/../repo-evil/config'), false));\ntest('rejects parent traversal', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/../../etc/passwd'), false));\ntest('accepts dot normalization within the root', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/src/../safe.ts'), true));\n"
+  },
+  "finalFiles": {
+    "src/index.ts": "import { isAbsolute, relative, resolve, sep } from 'node:path';\n\nexport function isWithin(root: string, target: string): boolean {\n  const path = relative(resolve(root), resolve(target));\n  return path === '' || (path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path));\n}\n",
+    "index.test.ts": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { isWithin } from './src/index.ts';\n\ntest('accepts a genuine descendant', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/src/index.ts'), true));\ntest('accepts the root itself', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo'), true));\ntest('rejects a sibling sharing the prefix', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo-evil/secrets'), false));\ntest('rejects normalized sibling traversal', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/../repo-evil/config'), false));\ntest('rejects parent traversal', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/../../etc/passwd'), false));\ntest('accepts dot normalization within the root', () => assert.equal(isWithin('/workspace/repo', '/workspace/repo/src/../safe.ts'), true));\n"
+  },
+  "patch": "diff --git a/src/index.ts b/src/index.ts\nindex 67034a7..4f2c94c 100644\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,5 +1,6 @@\n-import { resolve } from 'node:path';\n+import { isAbsolute, relative, resolve, sep } from 'node:path';\n \n export function isWithin(root: string, target: string): boolean {\n-  return resolve(target).startsWith(resolve(root));\n+  const path = relative(resolve(root), resolve(target));\n+  return path === '' || (path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path));\n }\n",
+  "patchSha256": "a825f72281903319a3af8c5bd5aa5ae0002340d9757090acbf710e71f8b7a05d",
+  "events": [
+    {
+      "seq": 1,
+      "timestamp": "2026-11-09T03:08:46.935Z",
+      "elapsedMs": 36,
+      "role": "planner",
+      "type": "phase",
+      "title": "Ada scopes the issue",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "PLAN"
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-11-09T03:08:46.936Z",
+      "elapsedMs": 36,
+      "role": "planner",
+      "type": "note",
+      "title": "Keep the change small",
+      "detail": "A path-prefix check lets /workspace/repo-evil masquerade as a child of /workspace/repo. Accept the root and genuine descendants; reject sibling names and traversal.\n\nRecord the failing baseline, edit only src/index.ts, rerun the same tests and verify the patch."
+    },
+    {
+      "seq": 3,
+      "timestamp": "2026-11-09T03:08:46.936Z",
+      "elapsedMs": 36,
+      "role": "coder",
+      "type": "tool",
+      "title": "Read src/index.ts",
+      "detail": "import { resolve } from 'node:path';\n\nexport function isWithin(root: string, target: string): boolean {\n  return resolve(target).startsWith(resolve(root));\n}\n",
+      "tool": "read_file",
+      "path": "src/index.ts"
+    },
+    {
+      "seq": 4,
+      "timestamp": "2026-11-09T03:08:46.936Z",
+      "elapsedMs": 36,
+      "role": "tester",
+      "type": "tool",
+      "title": "Run the baseline test command",
+      "detail": "node --experimental-strip-types --test index.test.ts",
+      "tool": "run_tests"
+    },
+    {
+      "seq": 5,
+      "timestamp": "2026-11-09T03:08:47.023Z",
+      "elapsedMs": 123,
+      "role": "tester",
+      "type": "tests",
+      "title": "Baseline confirms the defect",
+      "detail": "TAP version 13\n# Subtest: accepts a genuine descendant\nok 1 - accepts a genuine descendant\n  ---\n  duration_ms: 0.304958\n  type: 'test'\n  ...\n# Subtest: accepts the root itself\nok 2 - accepts the root itself\n  ---\n  duration_ms: 0.04275\n  type: 'test'\n  ...\n# Subtest: rejects a sibling sharing the prefix\nnot ok 3 - rejects a sibling sharing the prefix\n  ---\n  duration_ms: 0.292334\n  type: 'test'\n  location: '/private/workspace/index.test.ts:7:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    true !== false\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: false\n  actual: true\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///private/workspace/index.test.ts:7:59)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n# Subtest: rejects normalized sibling traversal\nnot ok 4 - rejects normalized sibling traversal\n  ---\n  duration_ms: 0.064917\n  type: 'test'\n  location: '/private/workspace/index.test.ts:8:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    true !== false\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: false\n  actual: true\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///private/workspace/index.test.ts:8:59)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n# Subtest: rejects parent traversal\nok 5 - rejects parent traversal\n  ---\n  duration_ms: 0.04025\n  type: 'test'\n  ...\n# Subtest: accepts dot normalization within the root\nok 6 - accepts dot normalization within the root\n  ---\n  duration_ms: 0.032708\n  type: 'test'\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 4\n# fail 2\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 61.84225\n",
+      "stage": "baseline",
+      "passed": 4,
+      "failed": 2,
+      "exitCode": 1,
+      "durationMs": 87
+    },
+    {
+      "seq": 6,
+      "timestamp": "2026-11-09T03:08:47.023Z",
+      "elapsedMs": 123,
+      "role": "coder",
+      "type": "phase",
+      "title": "Theo applies the scoped fix",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "seq": 7,
+      "timestamp": "2026-11-09T03:08:47.024Z",
+      "elapsedMs": 124,
+      "role": "coder",
+      "type": "file",
+      "title": "Edit src/index.ts",
+      "detail": "Applied the Codex-authored candidate fix to the temporary workspace.",
+      "tool": "edit_file",
+      "path": "src/index.ts",
+      "content": "import { isAbsolute, relative, resolve, sep } from 'node:path';\n\nexport function isWithin(root: string, target: string): boolean {\n  const path = relative(resolve(root), resolve(target));\n  return path === '' || (path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path));\n}\n"
+    },
+    {
+      "seq": 8,
+      "timestamp": "2026-11-09T03:08:47.036Z",
+      "elapsedMs": 136,
+      "role": "coder",
+      "type": "tool",
+      "title": "Inspect the unified diff",
+      "detail": "diff --git a/src/index.ts b/src/index.ts\nindex 67034a7..4f2c94c 100644\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,5 +1,6 @@\n-import { resolve } from 'node:path';\n+import { isAbsolute, relative, resolve, sep } from 'node:path';\n \n export function isWithin(root: string, target: string): boolean {\n-  return resolve(target).startsWith(resolve(root));\n+  const path = relative(resolve(root), resolve(target));\n+  return path === '' || (path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path));\n }\n",
+      "tool": "run_command",
+      "exitCode": 0,
+      "durationMs": 12
+    },
+    {
+      "seq": 9,
+      "timestamp": "2026-11-09T03:08:47.036Z",
+      "elapsedMs": 136,
+      "role": "tester",
+      "type": "phase",
+      "title": "Jules runs the same test suite",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "TEST"
+    },
+    {
+      "seq": 10,
+      "timestamp": "2026-11-09T03:08:47.117Z",
+      "elapsedMs": 217,
+      "role": "tester",
+      "type": "tests",
+      "title": "The fixed test suite passes",
+      "detail": "TAP version 13\n# Subtest: accepts a genuine descendant\nok 1 - accepts a genuine descendant\n  ---\n  duration_ms: 0.331125\n  type: 'test'\n  ...\n# Subtest: accepts the root itself\nok 2 - accepts the root itself\n  ---\n  duration_ms: 0.043709\n  type: 'test'\n  ...\n# Subtest: rejects a sibling sharing the prefix\nok 3 - rejects a sibling sharing the prefix\n  ---\n  duration_ms: 0.04225\n  type: 'test'\n  ...\n# Subtest: rejects normalized sibling traversal\nok 4 - rejects normalized sibling traversal\n  ---\n  duration_ms: 0.042459\n  type: 'test'\n  ...\n# Subtest: rejects parent traversal\nok 5 - rejects parent traversal\n  ---\n  duration_ms: 0.072292\n  type: 'test'\n  ...\n# Subtest: accepts dot normalization within the root\nok 6 - accepts dot normalization within the root\n  ---\n  duration_ms: 0.035916\n  type: 'test'\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 57.25625\n",
+      "stage": "after",
+      "passed": 6,
+      "failed": 0,
+      "exitCode": 0,
+      "durationMs": 81
+    },
+    {
+      "seq": 11,
+      "timestamp": "2026-11-09T03:08:47.117Z",
+      "elapsedMs": 217,
+      "role": "reviewer",
+      "type": "phase",
+      "title": "Maya inspects the captured evidence",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "REVIEW"
+    },
+    {
+      "seq": 12,
+      "timestamp": "2026-11-09T03:08:47.131Z",
+      "elapsedMs": 231,
+      "role": "reviewer",
+      "type": "review",
+      "title": "Structural review passed",
+      "detail": "Deterministic M1 review: only src/index.ts changed; the original tests are byte-for-byte unchanged; the real baseline failed and the same test command now passes. This is not an LLM review."
+    },
+    {
+      "seq": 13,
+      "timestamp": "2026-11-09T03:08:47.246Z",
+      "elapsedMs": 346,
+      "role": "tester",
+      "type": "tool",
+      "title": "Verify the downloadable patch",
+      "detail": "git apply --check candidate.patch\ngit apply candidate.patch\nnode --experimental-strip-types --test index.test.ts\n\nTAP version 13\n# Subtest: accepts a genuine descendant\nok 1 - accepts a genuine descendant\n  ---\n  duration_ms: 0.332333\n  type: 'test'\n  ...\n# Subtest: accepts the root itself\nok 2 - accepts the root itself\n  ---\n  duration_ms: 0.042292\n  type: 'test'\n  ...\n# Subtest: rejects a sibling sharing the prefix\nok 3 - rejects a sibling sharing the prefix\n  ---\n  duration_ms: 0.040625\n  type: 'test'\n  ...\n# Subtest: rejects normalized sibling traversal\nok 4 - rejects normalized sibling traversal\n  ---\n  duration_ms: 0.04125\n  type: 'test'\n  ...\n# Subtest: rejects parent traversal\nok 5 - rejects parent traversal\n  ---\n  duration_ms: 0.081458\n  type: 'test'\n  ...\n# Subtest: accepts dot normalization within the root\nok 6 - accepts dot normalization within the root\n  ---\n  duration_ms: 0.034334\n  type: 'test'\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 58.056958\n",
+      "tool": "run_command",
+      "exitCode": 0,
+      "durationMs": 80
+    },
+    {
+      "seq": 14,
+      "timestamp": "2026-11-09T03:08:47.246Z",
+      "elapsedMs": 346,
+      "role": "system",
+      "type": "phase",
+      "title": "Patch verified. Evidence ready.",
+      "detail": "Recorded engineering verification; role labels organize the evidence, not independent LLM calls.",
+      "phase": "DONE"
+    }
+  ],
+  "tokens": null,
+  "cost": null
+}

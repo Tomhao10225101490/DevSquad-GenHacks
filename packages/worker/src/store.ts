@@ -10,12 +10,12 @@ export class Store {
    CREATE TABLE IF NOT EXISTS artifacts(run_id TEXT NOT NULL REFERENCES runs(id),name TEXT NOT NULL,mime TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(run_id,name));
    PRAGMA user_version=1;`);
  }
- create(sampleId:SampleId,options:{maxRepairs?:number;timeoutMs?:number}={}):WorkerRun {
-  sampleSchema.parse(sampleId);const {maxRepairs=3,timeoutMs=120_000}=options;
+ create(sampleId:SampleId,options:{maxRepairs?:number;timeoutMs?:number;mode?:'fixture-verification'|'agent'}={}):WorkerRun {
+  sampleSchema.parse(sampleId);const {maxRepairs=3,timeoutMs=120_000,mode='fixture-verification'}=options;
   if(!Number.isInteger(maxRepairs)||maxRepairs<0||maxRepairs>3||!Number.isInteger(timeoutMs)||timeoutMs<20||timeoutMs>600_000)throw Error('Invalid execution limits.');
-  const date=new Date().toISOString(),run:WorkerRun={id:randomUUID(),sampleId,mode:'fixture-verification',phase:'PLAN',status:'PAUSED',version:0,repairCount:0,maxRepairs,pauseRequested:false,createdAt:date,updatedAt:date,activeMs:0,activeSince:null,timeoutMs,checkpoint:{},lastSeq:0};
+  const date=new Date().toISOString(),run:WorkerRun={id:randomUUID(),sampleId,mode,phase:'PLAN',status:'PAUSED',version:0,repairCount:0,maxRepairs,pauseRequested:false,createdAt:date,updatedAt:date,activeMs:0,activeSince:null,timeoutMs,checkpoint:{},lastSeq:0};
   this.db.prepare('INSERT INTO runs VALUES(?,?)').run(run.id,JSON.stringify(run));
-  return this.commit(run.id,()=>{},[{kind:'run.created',role:'system',type:'note',title:'Verification workspace reserved',detail:'Paused before PLAN. Only an authored bundled fixture can be executed; no model API is connected.'}]);
+  return this.commit(run.id,()=>{},[{kind:'run.created',role:'system',type:'note',title:'Verification workspace reserved',detail:mode==='agent'?'Paused before PLAN. The configured role model will solve a bundled issue inside restricted containers.':'Paused before PLAN. Only an authored bundled fixture can be executed; no model API is connected.'}]);
  }
  get(id:string):WorkerRun {const row=this.db.prepare('SELECT state FROM runs WHERE id=?').get(id) as {state:string}|undefined;if(!row)throw new NotFound('Run not found.');return JSON.parse(row.state);}
  list(limit=20):WorkerRun[]{return (this.db.prepare('SELECT state FROM runs ORDER BY rowid DESC LIMIT ?').all(Math.min(100,Math.max(1,limit))) as {state:string}[]).map(r=>JSON.parse(r.state));}

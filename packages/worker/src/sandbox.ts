@@ -1,0 +1,30 @@
+import {spawn} from 'node:child_process';
+import {existsSync} from 'node:fs';
+import {dirname,resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
+
+export function dockerBinary(){return existsSync('/Applications/Docker.app/Contents/Resources/bin/docker')?'/Applications/Docker.app/Contents/Resources/bin/docker':'docker';}
+export async function docker(args:string[],signal:AbortSignal,input?:string){
+ const binary=dockerBinary();return await new Promise<{output:string;exitCode:number}>((accept,reject)=>{
+  const child=spawn(binary,args,{shell:false,signal,env:{PATH:dirname(binary)+':'+process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8'}});let output='',oversized=false;
+  const append=(chunk:Buffer)=>{output+=chunk.toString();if(Buffer.byteLength(output)>100_000){oversized=true;child.kill('SIGKILL');}};
+  child.stdout.on('data',append);child.stderr.on('data',append);child.on('error',()=>reject(Error('Docker is unavailable or the command was cancelled.')));child.on('close',code=>{if(oversized)return reject(Error('Sandbox output exceeded 100 KB.'));if(signal.aborted)return reject(signal.reason);accept({output,exitCode:code??1});});child.stdin.on('error',()=>{});child.stdin.end(input);
+ });
+}
+export function validateToolPath(path:string,write=false){if(!['src/index.ts','index.test.ts','package.json'].includes(path)||(write&&path!=='src/index.ts'))throw Error('Path guard: only the bundled source can be edited; tests and package configuration are protected.');return path;}
+const fileProgram=`const fs=require('node:fs'),path=require('node:path');let input='';process.stdin.on('data',c=>input+=c);process.stdin.on('end',()=>{try{const a=JSON.parse(input);const p=path.resolve('/workspace',a.path);if(!['/workspace/src/index.ts','/workspace/index.test.ts','/workspace/package.json'].includes(p)||fs.lstatSync(p).isSymbolicLink()||fs.realpathSync(p)!==p)throw Error('Path guard rejected this file');if(a.operation==='write'){if(a.path!=='src/index.ts'||typeof a.content!=='string'||Buffer.byteLength(a.content)>30000)throw Error('Edit guard rejected this file');fs.writeFileSync(p,a.content);process.stdout.write('Source saved.');}else {const s=fs.statSync(p);if(!s.isFile()||s.size>50000)throw Error('File size guard rejected this file');process.stdout.write(fs.readFileSync(p,'utf8'));}}catch(e){process.stderr.write(e.message);process.exitCode=1;}});`;
+const boundaryRegression=`import {test} from 'node:test';import assert from 'node:assert/strict';import {isWithin} from './src/index.ts';for(const [name,root,target,expected] of [['accepts a dot-prefixed child','/repo','/repo/..notes',true],['accepts a dot-prefixed nested child','/repo','/repo/..notes/file.ts',true],['accepts a filesystem-root descendant','/','/tmp/file.ts',true],['rejects a sibling at a path boundary','/repo','/repo-two/file.ts',false]])test(name,()=>assert.equal(isWithin(root,target),expected));`;
+export class Sandbox {
+ readonly name='devsquad-'+randomUUID();private workspace:string;private image:string;private sampleId?:string;
+ constructor(workspace:string,image='node:22.23.0-bookworm-slim@sha256:d9f850096136edbc402debdd8729579a288aac64574ada0ff4db26b6ae58b0b2',sampleId?:string){this.workspace=resolve(workspace);this.image=image;this.sampleId=sampleId;}
+ async start(signal:AbortSignal){
+  const result=await docker(['run','--detach','--pull','never','--name',this.name,'--label','devsquad.ephemeral=true','--init','--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--pids-limit','64','--memory','256m','--memory-swap','256m','--cpus','1','--ulimit','nofile=128:128','--ulimit','fsize=1048576:1048576','--tmpfs','/tmp:rw,noexec,nosuid,size=16m','--user',`${process.getuid?.()??1000}:${process.getgid?.()??1000}`,'--mount',`type=bind,src=${this.workspace},dst=/workspace,readonly`,'--mount',`type=bind,src=${this.workspace}/src/index.ts,dst=/workspace/src/index.ts`,'--mount',`type=bind,src=${this.workspace}/package.json,dst=/workspace/package.json,readonly`,'--workdir','/workspace',this.image,'node','-e','setInterval(()=>{},1000)'],signal);
+  if(result.exitCode)throw Error('Could not start the sandbox. Start Docker and pull node:22.23.0-bookworm-slim first.');
+ }
+ async read(path:string,signal:AbortSignal){validateToolPath(path);return this.file({operation:'read',path},signal);}
+ async edit(path:string,content:string,signal:AbortSignal){validateToolPath(path,true);if(Buffer.byteLength(content)>30_000)throw Error('Source exceeds 30 KB.');return this.file({operation:'write',path,content},signal);}
+ private async file(args:Record<string,string>,signal:AbortSignal){const r=await docker(['exec','--interactive',this.name,'node','-e',fileProgram],signal,JSON.stringify(args));if(r.exitCode)throw Error('Sandbox file operation rejected: '+r.output.slice(0,300));return r.output;}
+ async search(query:string,signal:AbortSignal){if(!query||query.length>100)throw Error('Search needs 1–100 literal characters.');const found:string[]=[];for(const p of ['src/index.ts','index.test.ts']){const content=await this.read(p,signal);content.split('\n').forEach((line,i)=>{if(line.includes(query))found.push(`${p}:${i+1}: ${line}`);});}return found.join('\n').slice(0,20_000)||'No matching lines.';}
+ async command(command:string,signal:AbortSignal){if(command!=='node --experimental-strip-types --test index.test.ts')throw Error('Command guard: only the unchanged bundled test suite is allowed.');const original=await docker(['exec',this.name,'node','--experimental-strip-types','--test','--test-timeout=20000','index.test.ts'],signal);if(this.sampleId!=='path-guard')return original;const regression=await docker(['exec',this.name,'node','--experimental-strip-types','--input-type=module','--eval',boundaryRegression],signal);return {output:original.output+'\nIndependent boundary regression checks:\n'+regression.output,exitCode:original.exitCode||regression.exitCode};}
+ async close(){await docker(['rm','--force',this.name],AbortSignal.timeout(10_000)).catch(()=>{});}
+}

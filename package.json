@@ -10,7 +10,8 @@
     "typecheck": "pnpm --filter @devsquad/web typecheck && pnpm --filter @devsquad/worker typecheck && tsc -p packages/core/tsconfig.json --noEmit",
     "capture": "node --experimental-strip-types scripts/capture.ts",
     "verify:patches": "node --experimental-strip-types scripts/verify-patches.ts",
-    "worker": "pnpm --filter @devsquad/worker dev"
+    "worker": "pnpm --filter @devsquad/worker dev",
+    "agent": "node --experimental-strip-types scripts/run-agent.ts"
   },
   "devDependencies": {
     "@types/node": "^22.19.19",

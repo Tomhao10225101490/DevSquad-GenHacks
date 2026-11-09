@@ -1,0 +1,19 @@
+import {mkdtemp,mkdir,readFile,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {createHash} from 'node:crypto';
+import {Store} from '../packages/worker/src/store.ts';import {Sandbox} from '../packages/worker/src/sandbox.ts';
+const root=resolve(import.meta.dirname,'..'),id=process.argv[2];if(!id||!/^[a-f0-9-]{36}$/.test(id))throw Error('Provide the completed agent run UUID.');
+try{process.loadEnvFile(join(root,'.env.local'));}catch{}
+const store=new Store(join(root,'.data','agents.sqlite')),run=store.get(id);if(run.mode!=='agent'||run.status!=='DONE')throw Error('Only a completed real agent run can be exported.');
+const events=store.events(id,0,500),baselineFiles=JSON.parse(store.artifact(id,'baseline.json').content),finalFiles=JSON.parse(store.artifact(id,'final.json').content),patch=store.artifact(id,'candidate.patch').content;
+if(run.lastSeq>500)throw Error('Export event limit exceeded.');
+const dir=await mkdtemp(join(tmpdir(),'devsquad-agent-export-')),sandbox=new Sandbox(dir,undefined,run.sampleId),signal=AbortSignal.timeout(30_000);
+try{
+ await mkdir(join(dir,'src'));for(const [path,content]of Object.entries(baselineFiles))await writeFile(join(dir,path),String(content));await writeFile(join(dir,'package.json'),await readFile(join(root,'samples',run.sampleId,'package.json')));await writeFile(join(dir,'fix.patch'),patch);
+ await promisify(execFile)('git',['apply','fix.patch'],{cwd:dir,signal});if(await readFile(join(dir,'src/index.ts'),'utf8')!==finalFiles['src/index.ts'])throw Error('Patch does not reproduce the retained source.');
+ await sandbox.start(signal);const result=await sandbox.command('node --experimental-strip-types --test index.test.ts',signal);if(result.exitCode)throw Error('Independent patch verification failed: '+result.output);
+ const usage=events.filter(e=>e.kind==='model.attempt').map(e=>JSON.parse(e.detail)).filter(a=>a.outcome==='success'),known=usage.every(a=>a.usage),tokens=known?{input:usage.reduce((n,a)=>n+a.usage.inputTokens,0),output:usage.reduce((n,a)=>n+a.usage.outputTokens,0),total:usage.reduce((n,a)=>n+a.usage.totalTokens,0),cachedInput:usage.every(a=>a.usage.cachedInputTokens!==null)?usage.reduce((n,a)=>n+a.usage.cachedInputTokens,0):null}:null;
+ const prior=JSON.parse(await readFile(join(root,'apps/web/public/recordings',run.sampleId+'.json'),'utf8'));
+ const record={...prior,id:run.id,provenance:'agent-run',capturedAt:run.createdAt,disclosure:'Actual ECNU ecnu-max role-model calls: Planner, Coder, Tester and Reviewer. Generated source ran in pinned network-disabled Docker containers. The trace retains real model/tool events and any interrupted-phase recovery. No authored fixed.ts was read or applied.',runtime:'Node 22.23.0 in restricted Docker containers',model:process.env.DEVSQUAD_MODEL,baselineFiles,finalFiles,patch,patchSha256:createHash('sha256').update(patch).digest('hex'),events,tokens,cost:null,independentVerification:{verifiedAt:new Date().toISOString(),output:result.output,description:'Patch applied to a fresh original sample; original tests and any configured independent boundary checks passed inside a restricted container.'}};
+ const serialized=JSON.stringify(record,null,2);if(process.env.DEVSQUAD_API_KEY&&serialized.includes(process.env.DEVSQUAD_API_KEY))throw Error('Credential scan rejected the export.');
+ const output=join(root,'apps/web/public/recordings',run.sampleId+'-agent');await writeFile(output+'.json',serialized+'\n');await writeFile(output+'.patch',patch);console.log(JSON.stringify({runId:id,events:events.length,tokens,patchSha256:record.patchSha256,verification:'Exported patch passed the original suite and configured independent regressions in a fresh container workspace'}));
+}finally{await sandbox.close();await rm(dir,{recursive:true,force:true});store.close();}

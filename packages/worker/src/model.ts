@@ -28,6 +28,7 @@ async function boundedJson(response:Response):Promise<unknown>{
 export class ModelClient {
  private config:ModelConfig;
  constructor(config:ModelConfig){this.config=config;}
+ get model(){return this.config.model;}
  async complete(messages:Message[],tools:FunctionTool[],signal:AbortSignal,onAttempt:(attempt:ModelAttempt)=>void=()=>{}):Promise<Completion>{
   signal.throwIfAborted();const names=new Set(tools.map(t=>t.function.name));if(names.size!==tools.length)throw Error('Duplicate model tool name.');
   const body=JSON.stringify({model:this.config.model,messages,tools,tool_choice:'auto',parallel_tool_calls:false,stream:false,max_tokens:this.config.maxOutputTokens});

@@ -29,12 +29,12 @@ export class ModelClient {
  private config:ModelConfig;
  constructor(config:ModelConfig){this.config=config;}
  get model(){return this.config.model;}
- async complete(messages:Message[],tools:FunctionTool[],signal:AbortSignal,onAttempt:(attempt:ModelAttempt)=>void=()=>{}):Promise<Completion>{
+ async complete(messages:Message[],tools:FunctionTool[],signal:AbortSignal,onAttempt:(attempt:ModelAttempt)=>void=()=>{},onStart:(attempt:number)=>void=()=>{}):Promise<Completion>{
   signal.throwIfAborted();const names=new Set(tools.map(t=>t.function.name));if(names.size!==tools.length)throw Error('Duplicate model tool name.');
   const body=JSON.stringify({model:this.config.model,messages,tools,tool_choice:'auto',parallel_tool_calls:false,stream:false,max_tokens:this.config.maxOutputTokens});
   if(Buffer.byteLength(body)>180_000)throw Error('Model context exceeded the configured input budget.');
   for(let attempt=1;attempt<=3;attempt++){
-   const start=Date.now();let status:number|null=null,usage:Usage|null=null;
+   onStart(attempt);const start=Date.now();let status:number|null=null,usage:Usage|null=null;
    try{
     const requestSignal=AbortSignal.any([signal,AbortSignal.timeout(this.config.requestTimeoutMs)]);
     const response=await fetch(this.config.baseUrl+'/chat/completions',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+this.config.apiKey,'Content-Type':'application/json'},body,signal:requestSignal});status=response.status;

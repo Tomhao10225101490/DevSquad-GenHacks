@@ -47,3 +47,11 @@ Features exceeding a 30-minute investigation will be documented and moved to the
 - Verify all three samples through actual ECNU calls, immutable container tests and fresh-container patch application. Use those real recordings as the keyless sample picker defaults. Preserve historical authored traces and failed attempts.
 - Fix the live dialog height after inspecting the retained diff: bound its height, scroll inside it and keep the title/close action visible. The live role graph uses React Flow, matching the replay canvas.
 - Keep arbitrary GitHub repository execution off the host and out of this release. Import is labelled as a URL reference; no external issue is silently substituted with a sample. The supported complete path uses the three bundled original repositories. This is a deliberate scope cut under the brief's smaller-finished-product rule.
+
+## 2026-11-09 — M5: final usability and presentation
+
+- During actual capture, the live dialog's role graph mounted without visible nodes. Give it a separate React Flow provider, a stable graph ID, explicit node dimensions and left/right ports. Verified all four visible nodes and their connections in Chrome.
+- Bound dialog height, preserve the close action and trap keyboard focus. Actual Shift+Tab wraps within the worker dialog; Escape closes it and restores Run live focus. Keep background replay shortcuts inactive while the dialog is open.
+- Add model-request start events so an interrupted request leaves evidence before its response arrives. Keep reported response usage separate from unknown interrupted-call billing. Test retry start sequencing against a real local HTTP server.
+- Publish static replay through GitHub Pages with a build-time subpath; preserve the owner-private Sites preview separately. Public source retains the original incremental Git history. API credentials and local runtime data are ignored and scanned out of publication assets.
+- Build a 156.818-second English demonstration from actual application captures with original conversational narration, deliberate pauses and synthetic-voice disclosure. Subtitle timing uses actual TTS word-boundary offsets. Full audio decoding, levels, frame layout and caption bounds are checked; full human audition is required before publication because this runtime cannot hear the audio.

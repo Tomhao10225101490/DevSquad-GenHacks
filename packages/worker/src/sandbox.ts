@@ -6,7 +6,7 @@ import {randomUUID} from 'node:crypto';
 export function dockerBinary(){return existsSync('/Applications/Docker.app/Contents/Resources/bin/docker')?'/Applications/Docker.app/Contents/Resources/bin/docker':'docker';}
 export async function docker(args:string[],signal:AbortSignal,input?:string){
  const binary=dockerBinary();return await new Promise<{output:string;exitCode:number}>((accept,reject)=>{
-  const child=spawn(binary,args,{shell:false,signal,env:{PATH:dirname(binary)+':'+process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8'}});let output='',oversized=false;
+  const child=spawn(binary,args,{shell:false,signal,env:{PATH:binary.includes('/')?dirname(binary)+':'+process.env.PATH:process.env.PATH,HOME:process.env.HOME,LANG:'C.UTF-8'}});let output='',oversized=false;
   const append=(chunk:Buffer)=>{output+=chunk.toString();if(Buffer.byteLength(output)>100_000){oversized=true;child.kill('SIGKILL');}};
   child.stdout.on('data',append);child.stderr.on('data',append);child.on('error',()=>reject(Error('Docker is unavailable or the command was cancelled.')));child.on('close',code=>{if(oversized)return reject(Error('Sandbox output exceeded 100 KB.'));if(signal.aborted)return reject(signal.reason);accept({output,exitCode:code??1});});child.stdin.on('error',()=>{});child.stdin.end(input);
  });

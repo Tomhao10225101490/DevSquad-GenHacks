@@ -12,3 +12,7 @@ out/
 *.tsbuildinfo
 .DS_Store
 coverage/
+
+media/generated/
+media/.venv/
+__pycache__/

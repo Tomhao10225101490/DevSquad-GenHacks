@@ -8,3 +8,5 @@
 .worker-patch{margin-top:14px;border:1px solid var(--border);border-radius:6px;overflow:auto}.worker-patch h4{padding:10px;margin:0;border-bottom:1px solid var(--border)}
 
 .worker-panel{max-height:88dvh;overflow-y:auto}.worker-heading{position:sticky;top:0;background:#11161b;z-index:5}.worker-live-canvas{height:150px;margin:12px 0;border:1px solid var(--border);border-radius:6px;overflow:hidden}.worker-live-canvas .react-flow__node div{display:flex;flex-direction:column;gap:5px}.worker-live-canvas .react-flow__node span,.worker-live-canvas .react-flow__node small{font-size:10px;color:var(--muted)}
+
+.hosted-setup{display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid var(--border);border-radius:6px}.hosted-setup a{justify-content:center;text-decoration:none}.hosted-setup p{color:var(--muted);font-size:12px}

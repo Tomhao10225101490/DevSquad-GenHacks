@@ -18,3 +18,12 @@ M4: bounded repair/review loop, before/after evidence and PR diff result.
 M5: command palette, accessibility polish, usage accounting, patch verification and submission media.
 
 Features exceeding a 30-minute investigation will be documented and moved to the stretch list rather than shipped in a broken main path.
+
+## 2026-11-09 — M2: durable phase boundaries and loopback transport
+
+- Commit phase state, sequenced events and artifacts in one SQLite transaction, and notify SSE observers only after commit. This avoids displaying an event whose checkpoint was rolled back. WAL supports retained reads during a run; the CLI lock permits one local worker writer.
+- Pause at phase boundaries instead of interrupting a source write or test. Restart recovers RUNNING runs as PAUSED at their last committed phase; trusted phase operations can be retried idempotently. Account active time across resumes, cap repairs at three and make timeout/error escalation explicit.
+- Keep the M2 executor restricted to our authored fixtures until M3 isolation is available. Real Node test processes, file edits and Git patches are recorded, but the fixes were authored in advance. Structural review is not presented as an LLM review. Model usage is not applicable.
+- Use fetch-based SSE because native EventSource cannot attach the bearer Authorization header. Decode chunked frames, deduplicate sequence IDs, reconnect from Last-Event-ID and reject gaps. The local worker validates Host, Origin, token, body schema, output size and stream limits. A token never appears in a URL or browser storage.
+- Preserve the inspectable M1 replay as the keyless main demonstration and add a separate clearly labelled Worker session. The static private preview cannot host a Node process or local SQLite; the worker runs locally with explicit connection.
+- Verify the actual Node 22 TypeScript entrypoint as well as Vitest. Native strip-types cannot execute constructor parameter properties, so constructors use ordinary field assignments.

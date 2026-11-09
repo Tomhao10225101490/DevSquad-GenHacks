@@ -13,7 +13,8 @@ export function nextPhase(phase:ExecutablePhase,outcome:PhaseOutcome,repairs:num
 }
 export class Orchestrator {
  private active=new Map<string,{promise:Promise<void>;controller:AbortController}>();
- constructor(readonly store:Store,readonly executor:Executor){}
+ readonly store:Store;readonly executor:Executor;
+ constructor(store:Store,executor:Executor){this.store=store;this.executor=executor;}
  start(id:string):WorkerRun {
   const run=this.store.get(id);if(run.status!=='PAUSED'||this.active.has(id))throw new Conflict('Run is already active or terminal.');
   const remaining=run.timeoutMs-run.activeMs;if(remaining<=0)return this.escalate(id,'Runtime budget exhausted.');

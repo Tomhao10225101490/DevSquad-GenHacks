@@ -1,17 +1,23 @@
 diff --git a/src/index.ts b/src/index.ts
-index 67034a7..fe7cc3a 100644
+index 67034a7..a9b43c1 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -1,5 +1,10 @@
+@@ -1,5 +1,16 @@
 -import { resolve } from 'node:path';
 +import { resolve, relative, isAbsolute, sep } from 'node:path';
  
  export function isWithin(root: string, target: string): boolean {
 -  return resolve(target).startsWith(resolve(root));
-+  const r = resolve(root);
-+  const t = resolve(target);
-+  if (t === r) return true;
-+  const rel = relative(r, t);
-+  if (rel === '' || rel === '..' || isAbsolute(rel)) return false;
-+  return !rel.startsWith('..' + sep);
++  const resolvedRoot = resolve(root);
++  const resolvedTarget = resolve(target);
++  const rel = relative(resolvedRoot, resolvedTarget);
++
++  // The root itself is within the root.
++  if (rel === '') return true;
++
++  // A path resolving to a sibling/ancestor (or outside on another root) is not
++  // a descendant: relative() yields '..', '../x', or an absolute path.
++  if (rel === '..' || rel.startsWith('..' + sep)) return false;
++
++  return !isAbsolute(rel);
  }

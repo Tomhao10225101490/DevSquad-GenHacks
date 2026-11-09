@@ -1,6 +1,6 @@
 import {createServer,type IncomingMessage,type ServerResponse} from 'node:http';import {timingSafeEqual} from 'node:crypto';
 import {Store,NotFound} from './store.ts';import {Orchestrator,Conflict} from './orchestrator.ts';import {createSchema} from './schema.ts';import {workerDisclosure} from '../../core/src/worker.ts';
-export function createWorkerServer(store:Store,engine:Orchestrator,options:{token:string;origins?:string[]}) {
+export function createWorkerServer(store:Store,engine:Orchestrator,options:{token:string;origins?:string[];agentEnabled?:boolean}) {
  if(options.token.length<32)throw Error('Use an unpredictable worker token of at least 32 characters.');
  const streams=new Set<ServerResponse>();const origins=new Set(options.origins??['http://127.0.0.1:8770','http://localhost:8770']);
  const json=(res:ServerResponse,code:number,data:unknown)=>{res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
@@ -13,11 +13,11 @@ export function createWorkerServer(store:Store,engine:Orchestrator,options:{toke
   if(origin&&!origins.has(origin)&&origin!==`http://127.0.0.1:${port}`&&origin!==`http://localhost:${port}`)return json(res,403,{error:'Origin is not allowed.'});
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Authorization, Content-Type, Last-Event-ID','Access-Control-Max-Age':'300'});res.end();return;}
-  if(req.method==='GET'&&url.pathname==='/health')return json(res,200,{version:2,mode:'fixture-verification',disclosure:workerDisclosure,autonomousModels:false,sandbox:false});
+  if(req.method==='GET'&&url.pathname==='/health')return json(res,200,{version:options.agentEnabled?3:2,mode:options.agentEnabled?'agent-capable':'fixture-verification',disclosure:options.agentEnabled?'Real role-model execution in restricted Docker containers, or explicitly selected trusted fixture verification.':workerDisclosure,autonomousModels:!!options.agentEnabled,sandbox:!!options.agentEnabled});
   if(!auth(req))return json(res,401,{error:'Worker authorization required.'});
   try{
    if(req.method==='GET'&&url.pathname==='/runs')return json(res,200,{runs:store.list()});
-   if(req.method==='POST'&&url.pathname==='/runs'){const parsed=createSchema.safeParse(await body(req));if(!parsed.success)throw new BadRequest('Choose one of the three bundled sample IDs.');if(store.list(100).length>=100)throw new Conflict('This local worker retains at most 100 runs. Archive the database before starting another session.');return json(res,201,{run:store.create(parsed.data.sampleId)});}
+   if(req.method==='POST'&&url.pathname==='/runs'){const parsed=createSchema.safeParse(await body(req));if(!parsed.success)throw new BadRequest('Choose one of the three bundled sample IDs.');if(store.list(100).length>=100)throw new Conflict('This local worker retains at most 100 runs. Archive the database before starting another session.');if(parsed.data.mode==='agent'&&!options.agentEnabled)throw new BadRequest('Model execution is not configured on this worker.');return json(res,201,{run:store.create(parsed.data.sampleId,{mode:parsed.data.mode,timeoutMs:parsed.data.mode==='agent'?300_000:120_000})});}
    const route=url.pathname.match(/^\/runs\/([a-f0-9-]{36})(?:\/(events|resume|pause|artifacts)(?:\/([a-z0-9._-]{1,80}))?)?$/);
    if(!route)return json(res,404,{error:'Route not found.'});const [,id,action,name]=route;const run=store.get(id);
    if(req.method==='GET'&&!action)return json(res,200,{run});

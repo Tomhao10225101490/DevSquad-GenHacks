@@ -1,0 +1,24 @@
+diff --git a/src/index.ts b/src/index.ts
+index 9766f43..e458386 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -3,9 +3,18 @@ export class TTLCache<T> {
+   private now: () => number;
+   constructor(now: () => number = Date.now) { this.now = now; }
+   set(key: string, value: T, ttl: number): void {
++    if (!Number.isFinite(ttl) || ttl < 0) {
++      throw new RangeError(`ttl must be a non-negative finite number, received ${ttl}`);
++    }
+     this.values.set(key, { value, expiresAt: this.now() + ttl });
+   }
+   get(key: string): T | undefined {
+-    return this.values.get(key)?.value;
++    const entry = this.values.get(key);
++    if (entry === undefined) return undefined;
++    if (this.now() >= entry.expiresAt) {
++      this.values.delete(key);
++      return undefined;
++    }
++    return entry.value;
+   }
+ }

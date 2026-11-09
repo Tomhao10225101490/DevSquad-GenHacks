@@ -27,3 +27,10 @@ Features exceeding a 30-minute investigation will be documented and moved to the
 - Use fetch-based SSE because native EventSource cannot attach the bearer Authorization header. Decode chunked frames, deduplicate sequence IDs, reconnect from Last-Event-ID and reject gaps. The local worker validates Host, Origin, token, body schema, output size and stream limits. A token never appears in a URL or browser storage.
 - Preserve the inspectable M1 replay as the keyless main demonstration and add a separate clearly labelled Worker session. The static private preview cannot host a Node process or local SQLite; the worker runs locally with explicit connection.
 - Verify the actual Node 22 TypeScript entrypoint as well as Vitest. Native strip-types cannot execute constructor parameter properties, so constructors use ordinary field assignments.
+
+## 2026-11-09 — M3 API integration in progress
+
+- Use the user's ECNU OpenAI-compatible endpoint (`https://chat.ecnu.edu.cn/open/api/v1`) with `ecnu-max`. Official model and authorization documentation confirm function tools, JSON schemas and bearer authentication. Keep all credentials server-side in ignored `.env.local`; never forward them to a sandbox or static client.
+- Request one non-streaming completion at a time and stream validated events through our own retained SSE transport. Disable parallel tool calls, validate returned tool names and arguments, limit input/output, abort with the run signal and retry only transient HTTP status failures (at most three attempts). Do not retry uncertain transport failures that could duplicate provider work.
+- Preserve actual token counts and cache counts when supplied, otherwise unknown. ECNU uses credits with peak/off-peak and cache pricing; do not label those as USD or fabricate a cash bill.
+- Actual connectivity check: ecnu-max returned a read_file tool call for src/index.ts, HTTP 200, 323 input and 46 output tokens. This proves API tool connectivity; it is not yet the complete agent solve.

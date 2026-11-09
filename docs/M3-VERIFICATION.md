@@ -11,3 +11,5 @@ Reported successful-completion usage: 21,068 input, 2,155 output, 23,223 total, 
 Private historical failures remain in .data/agents.sqlite: a denied .git/config read, an unauthorized Tester approval verdict, and an independently discovered conservative-path regression. They are not substituted into the shipped successful recording.
 
 The M3 real-agent interface is `pnpm agent`; the browser Worker session still uses M2 fixture verification. Live browser role controls, final diff polish and competition media are incomplete. GenHacks has not been submitted.
+
+Actual Chrome QA: the 85-event recording played naturally from READY to DONE. PR result displayed the reported 23,223 tokens and 4 role contributions. The UI-downloaded path-guard (1).patch matched the independently verified SHA-256 above. Screenshot: docs/screenshots/agent-result.png.

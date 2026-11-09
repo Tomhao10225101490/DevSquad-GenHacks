@@ -1,0 +1,17 @@
+diff --git a/src/index.ts b/src/index.ts
+index 67034a7..fe7cc3a 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,5 +1,10 @@
+-import { resolve } from 'node:path';
++import { resolve, relative, isAbsolute, sep } from 'node:path';
+ 
+ export function isWithin(root: string, target: string): boolean {
+-  return resolve(target).startsWith(resolve(root));
++  const r = resolve(root);
++  const t = resolve(target);
++  if (t === r) return true;
++  const rel = relative(r, t);
++  if (rel === '' || rel === '..' || isAbsolute(rel)) return false;
++  return !rel.startsWith('..' + sep);
+ }

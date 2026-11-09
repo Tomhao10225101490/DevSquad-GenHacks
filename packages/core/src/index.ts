@@ -12,11 +12,11 @@ export interface RunEvent {
 }
 export interface Recording {
   version: 1; id: string; sampleId: string; title: string; issue: string;
-  capturedAt: string; provenance: 'engineering-verification';
+  capturedAt: string; provenance: 'engineering-verification' | 'agent-run';
   disclosure: string; runtime: string; testCommand: string;
   baselineFiles: Record<string,string>; finalFiles: Record<string,string>;
   patch: string; patchSha256: string; events: RunEvent[];
-  tokens: null; cost: null;
+  tokens: null | {input:number;output:number;total:number;cachedInput:number|null}; cost: null;
 }
 export interface Sample { id:string; repo:string; issueNumber:number; title:string; description:string; tags:string[]; difficulty:string; recording:string; }
 export const squad = [
@@ -45,8 +45,9 @@ export function parseIssueUrl(input:string):{owner:string;repo:string;number:num
 }
 export function validateRecording(value:unknown):Recording {
   const r=value as Recording;
-  if(!r||r.version!==1||r.provenance!=='engineering-verification'||!Array.isArray(r.events)||!r.events.length||typeof r.patch!=='string'||!r.baselineFiles||!r.finalFiles)throw Error('This recording is incomplete or unsupported.');
+  if(!r||r.version!==1||!['engineering-verification','agent-run'].includes(r.provenance)||!Array.isArray(r.events)||!r.events.length||typeof r.patch!=='string'||!r.baselineFiles||!r.finalFiles)throw Error('This recording is incomplete or unsupported.');
   r.events.forEach((e,i)=>{if(e.seq!==i+1||typeof e.title!=='string'||typeof e.detail!=='string'||!['phase','note','tool','file','tests','review','finish'].includes(e.type)||!Number.isFinite(e.elapsedMs))throw Error('The event sequence failed validation.');});
+  if(r.tokens!==null&&(!r.tokens||![r.tokens.input,r.tokens.output,r.tokens.total].every(n=>Number.isSafeInteger(n)&&n>=0)||r.tokens.total<r.tokens.input+r.tokens.output))throw Error('The recorded usage failed validation.');
   if(r.events.at(-1)?.phase!=='DONE')throw Error('The verification recording did not finish.');
   return r;
 }

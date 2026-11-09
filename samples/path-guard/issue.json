@@ -1,0 +1,12 @@
+{
+  "id": "path-guard",
+  "title": "Close the sibling-directory escape",
+  "body": "A path-prefix check lets /workspace/repo-evil masquerade as a child of /workspace/repo. Accept the root and genuine descendants; reject sibling names and traversal.",
+  "testCommand": [
+    "node",
+    "--experimental-strip-types",
+    "--test",
+    "index.test.ts"
+  ],
+  "trustedFixture": true
+}

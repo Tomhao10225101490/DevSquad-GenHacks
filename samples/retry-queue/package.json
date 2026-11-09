@@ -1,0 +1,9 @@
+{
+  "name": "devsquad-sample-retry-queue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test index.test.ts"
+  }
+}

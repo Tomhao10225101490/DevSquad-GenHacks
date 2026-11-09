@@ -1,0 +1,12 @@
+{
+  "id": "retry-queue",
+  "title": "Respect the retry budget",
+  "body": "The retry helper calls a failing task four times when the budget is three. Enforce the exact total-attempt budget, preserve the last failure, and reject invalid budgets before calling the task.",
+  "testCommand": [
+    "node",
+    "--experimental-strip-types",
+    "--test",
+    "index.test.ts"
+  ],
+  "trustedFixture": true
+}

@@ -1,0 +1,12 @@
+{
+  "id": "ttl-cache",
+  "title": "Expire entries at the exact boundary",
+  "body": "A cache continues returning stale values past their TTL. Expire and remove stale entries, preserve falsy values before expiry, and refresh the deadline when a key is overwritten.",
+  "testCommand": [
+    "node",
+    "--experimental-strip-types",
+    "--test",
+    "index.test.ts"
+  ],
+  "trustedFixture": true
+}

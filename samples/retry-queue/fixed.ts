@@ -1,0 +1,10 @@
+export async function retry<T>(task: () => Promise<T>, attempts = 3): Promise<T> {
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 10) {
+    throw new RangeError('attempts must be an integer from 1 to 10');
+  }
+  let last: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try { return await task(); } catch (error) { last = error; }
+  }
+  throw last;
+}

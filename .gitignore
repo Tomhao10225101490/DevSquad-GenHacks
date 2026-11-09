@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.openai/
+.sites-runtime/
+.env
+.env.*
+!.env.example
+.runs/
+.data/
+*.tsbuildinfo
+.DS_Store
+coverage/

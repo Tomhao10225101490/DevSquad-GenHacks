@@ -1,5 +1,5 @@
 :HL["/DevSquad-GenHacks/_next/static/css/c87714e46a1c65aa.css","style"]
-:HL["/DevSquad-GenHacks/_next/static/css/8b62425d11f767c5.css","style"]
+:HL["/DevSquad-GenHacks/_next/static/css/ca547871d826d0e4.css","style"]
 2:[["children",{"s":"__PAGE__","h":160}]]
 1:[["children",{"s":"_not-found","h":96,"c":"$Q2"}]]
-0:{"b":"IbTfopFcZrppmrsV553sI","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
+0:{"b":"6ffeTJnftXwV699WyxNvH","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
